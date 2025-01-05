@@ -13,4 +13,4 @@ jobs:
         with:
           java-version: '${{ matrix.java-version }}'
           distribution: 'zulu'
-      - run: mvnw verify
+      - run: ./mvnw verify
