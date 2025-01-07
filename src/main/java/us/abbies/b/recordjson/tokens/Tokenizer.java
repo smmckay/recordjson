@@ -7,7 +7,7 @@ import java.util.NoSuchElementException;
 
 public class Tokenizer implements Iterator<Token> {
     private final Reader input;
-    private int line =  1;
+    private int line = 1;
     private int column;
     private String errorMessage;
     private Token onDeck;
@@ -62,10 +62,7 @@ public class Tokenizer implements Iterator<Token> {
             case ',' -> new Token(TokenType.OBJ_VAL_SEP, null, line, column);
             case '[' -> new Token(TokenType.ARRAY_START, null, line, column);
             case ']' -> new Token(TokenType.ARRAY_END, null, line, column);
-            case '"' -> {
-                // TODO: read string
-                yield new Token(TokenType.ERROR, "Strings unimplemented", line, column);
-            }
+            case '"' -> readString(column);
             case 'f' -> expect("alse", new Token(TokenType.LIT_BOOL, false, line, column));
             case 'n' -> expect("ull", new Token(TokenType.LIT_NULL, null, line, column));
             case 't' -> expect("rue", new Token(TokenType.LIT_BOOL, true, line, column));
@@ -77,6 +74,32 @@ public class Tokenizer implements Iterator<Token> {
             case -2 -> new Token(TokenType.ERROR, errorMessage, line, column);
             default -> new Token(TokenType.ERROR, "Unrecognized character: " + Character.toString(c), line, column);
         };
+    }
+
+    private Token readString(int startingColumn) {
+        StringBuilder result = new StringBuilder();
+        int c;
+        do {
+            try {
+                c = input.read();
+            } catch (IOException e) {
+                return new Token(TokenType.ERROR, e.getMessage(), line, column);
+            }
+            if (c == -1) {
+                return new Token(TokenType.ERROR, "Unexpected end of input", line, column);
+            }
+
+            column++;
+            if (c == '\\') {
+                return new Token(TokenType.ERROR, "Escapes unimplemented", line, column);
+            } else if (c == '"') {
+                return new Token(TokenType.LIT_STR, result.toString(), line, startingColumn);
+            } else if (c <= 0x1F) {
+                return new Token(TokenType.ERROR, "Control characters not allowed inside strings", line, column);
+            } else {
+                result.append((char) c);
+            }
+        } while (true);
     }
 
     private Token expect(String remaining, Token successToken) {

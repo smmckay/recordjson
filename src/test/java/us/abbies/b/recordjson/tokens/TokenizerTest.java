@@ -13,6 +13,25 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class TokenizerTest {
+    static Stream<Arguments> whitespaceTestCases() {
+        return Stream.of(
+                arguments("  \"a\"  ", List.of(new Token(TokenType.LIT_STR, "a", 1, 3))),
+                arguments(" \t \"a\"\r\n\n \"a\" ", List.of(
+                                new Token(TokenType.LIT_STR, "a", 1, 4),
+                                new Token(TokenType.LIT_STR, "a", 3, 2)
+                        )
+                )
+        );
+    }
+
+    static Stream<Arguments> stringTestCases() {
+        return Stream.of(
+                arguments("\"a\"", List.of(new Token(TokenType.LIT_STR, "a", 1, 1))),
+                arguments("\"abc\"", List.of(new Token(TokenType.LIT_STR, "abc", 1, 1))),
+                arguments("\"a\"", List.of(new Token(TokenType.LIT_STR, "a", 1, 1)))
+        );
+    }
+
     static Stream<Arguments> nullTestCases() {
         return Stream.of(
                 arguments("null", List.of(new Token(TokenType.LIT_NULL, null, 1, 1))),
@@ -35,7 +54,7 @@ class TokenizerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource({"booleanTestCases", "nullTestCases"})
+    @MethodSource({"booleanTestCases", "nullTestCases", "stringTestCases", "whitespaceTestCases"})
     public void runTests(String input, List<Token> expectedTokens) {
         var tokenizer = new Tokenizer(new StringReader(input));
         List<Token> actualTokens = new ArrayList<>();
