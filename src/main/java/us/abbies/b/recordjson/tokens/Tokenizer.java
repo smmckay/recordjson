@@ -9,7 +9,6 @@ public class Tokenizer implements Iterator<Token> {
     private final Reader input;
     private int line = 1;
     private int column;
-    private String errorMessage;
     private Token onDeck;
     private boolean hitError;
 
@@ -19,9 +18,7 @@ public class Tokenizer implements Iterator<Token> {
 
     @Override
     public boolean hasNext() {
-        if (hitError) {
-            return false;
-        } else if (onDeck != null) {
+        if (onDeck != null) {
             return true;
         } else {
             tryReadToken();
@@ -31,9 +28,6 @@ public class Tokenizer implements Iterator<Token> {
 
     @Override
     public Token next() {
-        if (hitError) {
-            throw new NoSuchElementException();
-        }
         if (onDeck == null) {
             tryReadToken();
         }
@@ -42,9 +36,6 @@ public class Tokenizer implements Iterator<Token> {
         }
 
         Token result = onDeck;
-        if (result.type() == TokenType.ERROR) {
-            hitError = true;
-        }
         onDeck = null;
         return result;
     }
@@ -52,75 +43,59 @@ public class Tokenizer implements Iterator<Token> {
     private void tryReadToken() {
         if (onDeck != null) {
             throw new AssertionError("tryReadToken called with token on deck");
+        } else if (hitError) {
+            return;
         }
 
-        int c = discardWhitespace();
-        onDeck = switch (c) {
-            case '{' -> new Token(TokenType.OBJ_START, null, line, column);
-            case '}' -> new Token(TokenType.OBJ_END, null, line, column);
-            case ':' -> new Token(TokenType.OBJ_NAME_SEP, null, line, column);
-            case ',' -> new Token(TokenType.OBJ_VAL_SEP, null, line, column);
-            case '[' -> new Token(TokenType.ARRAY_START, null, line, column);
-            case ']' -> new Token(TokenType.ARRAY_END, null, line, column);
-            case '"' -> readString(column);
-            case 'f' -> expect("alse", new Token(TokenType.LIT_BOOL, false, line, column));
-            case 'n' -> expect("ull", new Token(TokenType.LIT_NULL, null, line, column));
-            case 't' -> expect("rue", new Token(TokenType.LIT_BOOL, true, line, column));
-            case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
-                // TODO: read number
-                yield new Token(TokenType.ERROR, "Numbers unimplemented", line, column);
-            }
-            case -1 -> null;
-            case -2 -> new Token(TokenType.ERROR, errorMessage, line, column);
-            default -> new Token(TokenType.ERROR, "Unrecognized character: " + Character.toString(c), line, column);
-        };
+        try {
+            int c = discardWhitespace();
+            onDeck = switch (c) {
+                case '{' -> Token.objStart(line, column);
+                case '}' -> Token.objEnd(line, column);
+                case ':' -> Token.objNameSep(line, column);
+                case ',' -> Token.objValSep(line, column);
+                case '[' -> Token.arrayStart(line, column);
+                case ']' -> Token.arrayEnd(line, column);
+                case '"' -> readString(column);
+                case 'f' -> expect("alse", Token.bool(false, line, column));
+                case 'n' -> expect("ull", Token.nullToken(line, column));
+                case 't' -> expect("rue", Token.bool(true, line, column));
+                case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> throw new Token.Exception("Numbers unimplemented", line, column);
+                case -1 -> null;
+                default -> throw new Token.Exception("Unrecognized character: " + Character.toString(c), line, column);
+            };
+        } catch (Token.Exception e) {
+            hitError = true;
+            onDeck = e.asErrorToken();
+        } catch (RuntimeException e) {
+            hitError = true;
+            onDeck = new Token.Exception(e.getMessage(), e, line, column).asErrorToken();
+        }
     }
 
     private Token readString(int startingColumn) {
         StringBuilder result = new StringBuilder();
-        int c;
-        do {
-            try {
-                c = input.read();
-            } catch (IOException e) {
-                return new Token(TokenType.ERROR, e.getMessage(), line, column);
-            }
-            if (c == -1) {
-                return new Token(TokenType.ERROR, "Unexpected end of input", line, column);
-            }
-
-            column++;
+        while (true) {
+            int c = read();
             if (c == '\\') {
-                return new Token(TokenType.ERROR, "Escapes unimplemented", line, column);
+                throw new Token.Exception("Escapes unimplemented", line, column);
             } else if (c == '"') {
-                return new Token(TokenType.LIT_STR, result.toString(), line, startingColumn);
+                return Token.string(result.toString(), line, startingColumn);
             } else if (c <= 0x1F) {
-                return new Token(TokenType.ERROR, "Control characters not allowed inside strings", line, column);
+                throw new Token.Exception("Control characters not allowed inside strings", line, column);
             } else {
                 result.append((char) c);
             }
-        } while (true);
+        }
     }
 
     private Token expect(String remaining, Token successToken) {
         for (char expected : remaining.toCharArray()) {
-            int actual;
-            try {
-                actual = input.read();
-            } catch (IOException e) {
-                return new Token(TokenType.ERROR, e.getMessage(), line, column);
-            }
-
-            if (actual == -1) {
-                return new Token(TokenType.ERROR, "Unexpected end of input", line, column);
-            }
-
-            column++;
+            int actual = read();
             if (expected != actual) {
-                return new Token(TokenType.ERROR, "Unexpected character: " + Character.toString(actual), line, column);
+                throw new Token.Exception("Unexpected character: " + Character.toString(actual), line, column);
             }
         }
-
         return successToken;
     }
 
@@ -130,8 +105,7 @@ public class Tokenizer implements Iterator<Token> {
             try {
                 result = input.read();
             } catch (IOException e) {
-                errorMessage = e.getMessage();
-                return -2;
+                throw new Token.Exception(e.getMessage(), e, line, column);
             }
 
             if (result == 0x0A) {
@@ -142,5 +116,19 @@ public class Tokenizer implements Iterator<Token> {
             }
         } while (result == 0x20 || result == 0x09 || result == 0x0A || result == 0x0D);
         return result;
+    }
+
+    private char read() {
+        int result;
+        try {
+            result = input.read();
+        } catch (IOException e) {
+            throw new Token.Exception(e.getMessage(), e, line, column);
+        }
+        if (result == -1) {
+            throw new Token.Exception("Unexpected end of input", line, column);
+        }
+        column++;
+        return (char) result;
     }
 }

@@ -15,10 +15,10 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class TokenizerTest {
     static Stream<Arguments> whitespaceTestCases() {
         return Stream.of(
-                arguments("  \"a\"  ", List.of(new Token(TokenType.LIT_STR, "a", 1, 3))),
+                arguments("  \"a\"  ", List.of(Token.string("a", 1, 3))),
                 arguments(" \t \"a\"\r\n\n \"a\" ", List.of(
-                                new Token(TokenType.LIT_STR, "a", 1, 4),
-                                new Token(TokenType.LIT_STR, "a", 3, 2)
+                                Token.string("a", 1, 4),
+                                Token.string("a", 3, 2)
                         )
                 )
         );
@@ -26,30 +26,30 @@ class TokenizerTest {
 
     static Stream<Arguments> stringTestCases() {
         return Stream.of(
-                arguments("\"a\"", List.of(new Token(TokenType.LIT_STR, "a", 1, 1))),
-                arguments("\"abc\"", List.of(new Token(TokenType.LIT_STR, "abc", 1, 1))),
-                arguments("\"a\"", List.of(new Token(TokenType.LIT_STR, "a", 1, 1)))
+                arguments("\"a\"", List.of(Token.string("a", 1, 1))),
+                arguments("\"abc\"", List.of(Token.string("abc", 1, 1))),
+                arguments("\"a\"", List.of(Token.string("a", 1, 1)))
         );
     }
 
     static Stream<Arguments> nullTestCases() {
         return Stream.of(
-                arguments("null", List.of(new Token(TokenType.LIT_NULL, null, 1, 1))),
-                arguments("nll", List.of(new Token(TokenType.ERROR, "Unexpected character: l", 1, 2))),
-                arguments("nul", List.of(new Token(TokenType.ERROR, "Unexpected end of input", 1, 3)))
+                arguments("null", List.of(Token.nullToken(1, 1))),
+                arguments("nll", List.of(new Token.Exception("Unexpected character: l", 1, 2).asErrorToken())),
+                arguments("nul", List.of(new Token.Exception("Unexpected end of input", 1, 3).asErrorToken()))
         );
     }
 
     static Stream<Arguments> booleanTestCases() {
         return Stream.of(
-                arguments("false", List.of(new Token(TokenType.LIT_BOOL, false, 1, 1))),
-                arguments("true", List.of(new Token(TokenType.LIT_BOOL, true, 1, 1))),
-                arguments("flase", List.of(new Token(TokenType.ERROR, "Unexpected character: l", 1, 2))),
-                arguments("ture", List.of(new Token(TokenType.ERROR, "Unexpected character: u", 1, 2))),
-                arguments("f", List.of(new Token(TokenType.ERROR, "Unexpected end of input", 1, 1))),
-                arguments("fals", List.of(new Token(TokenType.ERROR, "Unexpected end of input", 1, 4))),
-                arguments("t", List.of(new Token(TokenType.ERROR, "Unexpected end of input", 1, 1))),
-                arguments("tru", List.of(new Token(TokenType.ERROR, "Unexpected end of input", 1, 3)))
+                arguments("false", List.of(Token.bool(false, 1, 1))),
+                arguments("true", List.of(Token.bool(true, 1, 1))),
+                arguments("flase", List.of(new Token.Exception("Unexpected character: l", 1, 2).asErrorToken())),
+                arguments("ture", List.of(new Token.Exception("Unexpected character: u", 1, 2).asErrorToken())),
+                arguments("f", List.of(new Token.Exception("Unexpected end of input", 1, 1).asErrorToken())),
+                arguments("fals", List.of(new Token.Exception("Unexpected end of input", 1, 4).asErrorToken())),
+                arguments("t", List.of(new Token.Exception("Unexpected end of input", 1, 1).asErrorToken())),
+                arguments("tru", List.of(new Token.Exception("Unexpected end of input", 1, 3).asErrorToken()))
         );
     }
 
