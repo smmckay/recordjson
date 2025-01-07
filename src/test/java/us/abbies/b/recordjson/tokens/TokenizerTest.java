@@ -28,7 +28,15 @@ class TokenizerTest {
         return Stream.of(
                 arguments("\"a\"", List.of(Token.string("a", 1, 1))),
                 arguments("\"abc\"", List.of(Token.string("abc", 1, 1))),
-                arguments("\"a\"", List.of(Token.string("a", 1, 1)))
+                arguments("\"\\\"\"", List.of(Token.string("\"", 1, 1))),
+                arguments("\"\\\\\"", List.of(Token.string("\\", 1, 1))),
+                arguments("\"\\/\"", List.of(Token.string("/", 1, 1))),
+                arguments("\"\\b\"", List.of(Token.string("\b", 1, 1))),
+                arguments("\"\\f\"", List.of(Token.string("\f", 1, 1))),
+                arguments("\"\\n\"", List.of(Token.string("\n", 1, 1))),
+                arguments("\"\\r\"", List.of(Token.string("\r", 1, 1))),
+                arguments("\"\\t\"", List.of(Token.string("\t", 1, 1))),
+                arguments("\"\\q\"", List.of(new Token.Exception("Unrecognized escape sequence \\q", 1, 3).asErrorToken()))
         );
     }
 

@@ -78,7 +78,7 @@ public class Tokenizer implements Iterator<Token> {
         while (true) {
             int c = read();
             if (c == '\\') {
-                throw new Token.Exception("Escapes unimplemented", line, column);
+                result.append(readCharEscape());
             } else if (c == '"') {
                 return Token.string(result.toString(), line, startingColumn);
             } else if (c <= 0x1F) {
@@ -87,6 +87,22 @@ public class Tokenizer implements Iterator<Token> {
                 result.append((char) c);
             }
         }
+    }
+
+    private char readCharEscape() {
+        char c = read();
+        return switch (c) {
+            case '"' -> '"';
+            case '\\' -> '\\';
+            case '/' -> '/';
+            case 'b' -> '\b';
+            case 'f' -> '\f';
+            case 'n' -> '\n';
+            case 'r' -> '\r';
+            case 't' -> '\t';
+            case 'u' -> throw new Token.Exception("Unicode escapes unimplemented", line, column);
+            default -> throw new Token.Exception("Unrecognized escape sequence \\" + c, line, column);
+        };
     }
 
     private Token expect(String remaining, Token successToken) {
