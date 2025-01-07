@@ -63,7 +63,7 @@ class TokenizerTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource({"booleanTestCases", "nullTestCases", "stringTestCases", "whitespaceTestCases"})
-    public void runTests(String input, List<Token> expectedTokens) {
+    public void runTest(String input, List<Token> expectedTokens) {
         var tokenizer = new Tokenizer(new StringReader(input));
         List<Token> actualTokens = new ArrayList<>();
         tokenizer.forEachRemaining(actualTokens::add);
