@@ -1,0 +1,24 @@
+name: 'Test Report'
+on:
+  workflow_run:
+    workflows: [ 'CI' ]
+    types:
+      - completed
+permissions:
+  contents: read
+  actions: read
+  checks: write
+jobs:
+  report:
+    strategy:
+      matrix:
+        java-version: [ 17, 21 ]
+        os: [ ubuntu-24.04, windows-2025, macos-15 ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dorny/test-reporter@v1
+        with:
+          artifact: test-results-jdk-${{ matrix.java-version }}-${{ matrix.os }}
+          name: Unit tests (JDK ${{ matrix.java-version }}, ${{ matrix.os }})
+          path: '*.xml'
+          reporter: java-junit

@@ -1,11 +1,13 @@
-name: build and test
-on: push
+name: CI
+on:
+  - push
+  - pull_request
 jobs:
   build_and_test:
     strategy:
       matrix:
-        java-version: [17, 21]
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        java-version: [ 17, 21 ]
+        os: [ ubuntu-24.04, windows-2025, macos-15 ]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -14,9 +16,8 @@ jobs:
           java-version: '${{ matrix.java-version }}'
           distribution: 'zulu'
       - run: ./mvnw verify
-      - uses: dorny/test-reporter@v1
+      - uses: actions/upload-artifact@v4
         if: success() || failure()
+        name: test-results-jdk-${{ matrix.java-version }}-${{ matrix.os }}
         with:
-          name: Unit tests
           path: target/surefire-reports/TEST-*.xml
-          reporter: java-junit
