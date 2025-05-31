@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class TokenizerTest {
@@ -40,6 +40,22 @@ class TokenizerTest {
         );
     }
 
+    static Stream<Arguments> unicodeEscapeTestCases() {
+        return Stream.of(
+                arguments("\"\\u0000\"", List.of(Token.string("\u0000", 1, 1))),
+                arguments("\"\\u000a\"", List.of(Token.string("\n", 1, 1))),
+                arguments("\"\\u000A\"", List.of(Token.string("\n", 1, 1))),
+                arguments("\"\\uD83D\\uDCA9\"\"\\uD83D\\uDCA9\"", List.of(
+                        Token.string("\uD83D\uDCA9", 1, 1),
+                        Token.string("\uD83D\uDCA9", 1, 15)
+                )),
+                arguments("\"\\uD83D\"", List.of(Token.string("\uD83D", 1, 1))),
+                arguments("\"\\u0401\"", List.of(Token.string("Ё", 1, 1))),
+                arguments("\"\\u040\"", List.of(new Token.Exception("Invalid character '\"' in Unicode escape", 1, 7).asErrorToken())),
+                arguments("\"\\u040", List.of(new Token.Exception("Unexpected end of input", 1, 6).asErrorToken()))
+        );
+    }
+
     static Stream<Arguments> nullTestCases() {
         return Stream.of(
                 arguments("null", List.of(Token.nullToken(1, 1))),
@@ -62,7 +78,13 @@ class TokenizerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource({"booleanTestCases", "nullTestCases", "stringTestCases", "whitespaceTestCases"})
+    @MethodSource({
+            "booleanTestCases",
+            "nullTestCases",
+            "stringTestCases",
+            "unicodeEscapeTestCases",
+            "whitespaceTestCases"
+    })
     public void runTest(String input, List<Token> expectedTokens) {
         var tokenizer = new Tokenizer(new StringReader(input));
         List<Token> actualTokens = new ArrayList<>();

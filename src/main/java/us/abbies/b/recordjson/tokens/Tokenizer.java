@@ -4,16 +4,18 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 public class Tokenizer implements Iterator<Token> {
     private final Reader input;
     private int line = 1;
     private int column;
     private Token onDeck;
+    private int peeked;
     private boolean hitError;
 
     Tokenizer(Reader input) {
-        this.input = input;
+        this.input = Objects.requireNonNull(input, "input must not be null");
     }
 
     @Override
@@ -60,7 +62,10 @@ public class Tokenizer implements Iterator<Token> {
                 case 'f' -> expect("alse", Token.bool(false, line, column));
                 case 'n' -> expect("ull", Token.nullToken(line, column));
                 case 't' -> expect("rue", Token.bool(true, line, column));
-                case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> throw new Token.Exception("Numbers unimplemented", line, column);
+                case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
+                    putBack(c);
+                    yield readNumber(column);
+                }
                 case -1 -> null;
                 default -> throw new Token.Exception("Unrecognized character: " + Character.toString(c), line, column);
             };
@@ -90,7 +95,7 @@ public class Tokenizer implements Iterator<Token> {
     }
 
     private char readCharEscape() {
-        char c = read();
+        int c = read();
         return switch (c) {
             case '"' -> '"';
             case '\\' -> '\\';
@@ -100,9 +105,22 @@ public class Tokenizer implements Iterator<Token> {
             case 'n' -> '\n';
             case 'r' -> '\r';
             case 't' -> '\t';
-            case 'u' -> throw new Token.Exception("Unicode escapes unimplemented", line, column);
-            default -> throw new Token.Exception("Unrecognized escape sequence \\" + c, line, column);
+            case 'u' -> (char) (readHexDigit() << 12 | readHexDigit() << 8 | readHexDigit() << 4 | readHexDigit());
+            default -> throw new Token.Exception("Unrecognized escape sequence \\" + (char) c, line, column);
         };
+    }
+
+    private int readHexDigit() {
+        int c = read();
+        int result = Character.digit(c, 16);
+        if (result == -1) {
+            throw new Token.Exception("Invalid character '" + (char) c + "' in Unicode escape", line, column);
+        }
+        return result;
+    }
+
+    private Token readNumber(int startingColumn) {
+        throw new Token.Exception("Numbers unimplemented", line, column);
     }
 
     private Token expect(String remaining, Token successToken) {
@@ -118,33 +136,43 @@ public class Tokenizer implements Iterator<Token> {
     private int discardWhitespace() {
         int result;
         do {
-            try {
-                result = input.read();
-            } catch (IOException e) {
-                throw new Token.Exception(e.getMessage(), e, line, column);
-            }
-
+            result = nextChar(true);
             if (result == 0x0A) {
                 line++;
                 column = 0;
-            } else {
-                column++;
             }
         } while (result == 0x20 || result == 0x09 || result == 0x0A || result == 0x0D);
         return result;
     }
 
-    private char read() {
+    private int read() {
+        return nextChar(false);
+    }
+
+    private int nextChar(boolean eofAllowed) {
+        if (peeked != 0) {
+            int result = peeked;
+            peeked = 0;
+            return result;
+        }
+
         int result;
         try {
             result = input.read();
         } catch (IOException e) {
             throw new Token.Exception(e.getMessage(), e, line, column);
         }
-        if (result == -1) {
+
+        if (result == -1 && !eofAllowed) {
             throw new Token.Exception("Unexpected end of input", line, column);
         }
+
         column++;
-        return (char) result;
+        return result;
+    }
+
+    private void putBack(int c) {
+        assert peeked == 0 : String.format("Attempt to putBack '%c' at line %d and column %d with char '%c' already stored: ", c, line, column, peeked);
+        peeked = c;
     }
 }
