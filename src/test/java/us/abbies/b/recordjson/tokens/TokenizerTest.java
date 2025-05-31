@@ -77,10 +77,34 @@ class TokenizerTest {
         );
     }
 
+    static Stream<Arguments> numberTestCases() {
+        return Stream.of(
+                arguments("2", List.of(Token.longToken(2, 1, 1))),
+                arguments("-2", List.of(Token.longToken(-2, 1, 1))),
+                arguments("2.0", List.of(Token.doubleToken(2.0, 1, 1))),
+                arguments("-2.0", List.of(Token.doubleToken(-2.0, 1, 1))),
+                arguments("2.0e0", List.of(Token.doubleToken(2.0, 1, 1))),
+                arguments("-2.0e0", List.of(Token.doubleToken(-2.0, 1, 1))),
+                arguments("2.0e1", List.of(Token.doubleToken(20.0, 1, 1))),
+                arguments("-2.0E1", List.of(Token.doubleToken(-20.0, 1, 1))),
+                arguments("2e2", List.of(Token.doubleToken(200.0, 1, 1))),
+                arguments("-2E2", List.of(Token.doubleToken(-200.0, 1, 1))),
+                arguments("23", List.of(Token.longToken(23, 1, 1))),
+                arguments("-23", List.of(Token.longToken(-23, 1, 1))),
+                arguments("2300000000000000000000", List.of(new Token.Exception("Invalid numeric literal", 1, 1).asErrorToken())),
+                arguments("-2300000000000000000000", List.of(new Token.Exception("Invalid numeric literal", 1, 1).asErrorToken())),
+                arguments("2300000000000000000000.0", List.of(Token.doubleToken(2300000000000000000000.0, 1, 1))),
+                arguments("-2300000000000000000000.0", List.of(Token.doubleToken(-2300000000000000000000.0, 1, 1))),
+                arguments("2300000000000000000000.0e2", List.of(Token.doubleToken(230000000000000000000000.0, 1, 1))),
+                arguments("-2300000000000000000000.0e2", List.of(Token.doubleToken(-230000000000000000000000.0, 1, 1)))
+        );
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource({
             "booleanTestCases",
             "nullTestCases",
+            "numberTestCases",
             "stringTestCases",
             "unicodeEscapeTestCases",
             "whitespaceTestCases"

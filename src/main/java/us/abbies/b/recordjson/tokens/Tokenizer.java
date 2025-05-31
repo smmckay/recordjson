@@ -62,10 +62,7 @@ public class Tokenizer implements Iterator<Token> {
                 case 'f' -> expect("alse", Token.bool(false, line, column));
                 case 'n' -> expect("ull", Token.nullToken(line, column));
                 case 't' -> expect("rue", Token.bool(true, line, column));
-                case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
-                    putBack(c);
-                    yield readNumber(column);
-                }
+                case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> readNumber(column, c);
                 case -1 -> null;
                 default -> throw new Token.Exception("Unrecognized character: " + Character.toString(c), line, column);
             };
@@ -119,8 +116,54 @@ public class Tokenizer implements Iterator<Token> {
         return result;
     }
 
-    private Token readNumber(int startingColumn) {
-        throw new Token.Exception("Numbers unimplemented", line, column);
+    private Token readNumber(int startingColumn, int firstChar) {
+        StringBuilder buf = new StringBuilder();
+        int minusFactor = 1;
+        if (firstChar == '-') {
+            minusFactor = -1;
+        } else {
+            putBack(firstChar);
+        }
+
+        boolean isLong = true;
+        int c = accumulateDigits(buf);
+
+        if (c == '.') {
+            // fractional part
+            isLong = false;
+            buf.append((char) c);
+            c = accumulateDigits(buf);
+        }
+
+        if (c == 'e' || c == 'E') {
+            // exponent
+            isLong = false;
+            buf.append((char) c);
+            c = accumulateDigits(buf);
+        }
+
+        putBack(c);
+
+        try {
+            if (isLong) {
+                return Token.longToken(minusFactor * Long.parseUnsignedLong(buf, 0, buf.length(), 10), line, startingColumn);
+            } else {
+                return Token.doubleToken(minusFactor * Double.parseDouble(buf.toString()), line, startingColumn);
+            }
+        } catch (NumberFormatException e) {
+            return new Token.Exception("Invalid numeric literal", e, line, startingColumn).asErrorToken();
+        }
+    }
+
+    private int accumulateDigits(StringBuilder buf) {
+        int i, c;
+        for (c = nextChar(true), i = 0; c >= '0' && c <= '9'; c = nextChar(true), i++) {
+            buf.append((char) c);
+        }
+        if (i == 0) {
+            throw new Token.Exception("Expected digits in numeric literal", line, column);
+        }
+        return c;
     }
 
     private Token expect(String remaining, Token successToken) {
@@ -141,8 +184,12 @@ public class Tokenizer implements Iterator<Token> {
                 line++;
                 column = 0;
             }
-        } while (result == 0x20 || result == 0x09 || result == 0x0A || result == 0x0D);
+        } while (isWhitespace(result));
         return result;
+    }
+
+    private boolean isWhitespace(int c) {
+        return c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D;
     }
 
     private int read() {
